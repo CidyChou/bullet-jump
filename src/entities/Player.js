@@ -1,4 +1,4 @@
-import { CONFIG } from "../config.js?v=3.7.5";
+import { CONFIG } from "../config.js?v=3.8.0";
 
 export class Player {
   constructor(x, y, input, upgrades) {

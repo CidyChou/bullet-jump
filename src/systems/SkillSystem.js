@@ -1,4 +1,4 @@
-import { CONFIG } from '../config.js?v=3.7.3';
+import { CONFIG } from '../config.js?v=3.8.0';
 
 export class SkillSystem {
   constructor(upgrades, audio, ui) {

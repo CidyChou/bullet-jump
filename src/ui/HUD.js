@@ -1,5 +1,5 @@
-import { CONFIG } from "../config.js?v=3.7.5";
-import { CARDS_BY_ID } from "../data/cards.js?v=3.7.5";
+import { CONFIG } from "../config.js?v=3.8.0";
+import { CARDS_BY_ID } from "../data/cards.js?v=3.8.0";
 
 function element(id) {
   return document.getElementById(id);
@@ -38,6 +38,10 @@ export class HUD {
     this.bulletTimeButton = element("bulletTimeButton");
     this.timeJumpButton = element("timeJumpButton");
     this.upgradeList = element("upgradeList");
+    this.bossHud = element("bossHud");
+    this.bossName = element("bossName");
+    this.bossHpText = element("bossHpText");
+    this.bossHealthFill = element("bossHealthFill");
     this.toastElement = element("toast");
     this.toastTimer = 0;
   }
@@ -97,6 +101,14 @@ export class HUD {
       game.skills.bulletTimeCooldown > 0 && !game.skills.isBulletTimeActive,
     );
     toggle(this.bulletTimeButton, "active", game.skills.isBulletTimeActive);
+    const boss = game.activeBoss && !game.activeBoss.dead ? game.activeBoss : null;
+    toggle(this.bossHud, "show", Boolean(boss));
+    if (boss) {
+      setText(this.bossName, boss.bossName);
+      setText(this.bossHpText, `${Math.max(0, Math.ceil(boss.hp))} / ${boss.maxHp}`);
+      setWidth(this.bossHealthFill, `${Math.max(0, boss.hp / boss.maxHp) * 100}%`);
+    }
+
     toggle(
       this.timeJumpButton,
       "cooldown",

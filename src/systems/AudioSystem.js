@@ -45,6 +45,11 @@ export class AudioSystem {
       rogueOpen: [380, 0.18, "triangle", 0.025],
       rogueMove: [540, 0.045, "sine", 0.015],
       roguePick: [880, 0.16, "triangle", 0.03],
+      meleeCharge: [125, 0.16, "sawtooth", 0.022],
+      meleeHit: [74, 0.12, "square", 0.03],
+      bossWarning: [92, 0.42, "sawtooth", 0.035],
+      bossShot: [185, 0.10, "square", 0.022],
+      bossDown: [55, 0.48, "sawtooth", 0.045],
     };
 
     if (name === "hurt") {
@@ -68,6 +73,16 @@ export class AudioSystem {
 
     if (name === "roguePick") {
       this.tone(1100, 0.14, "triangle", 0.024, 0.07);
+    }
+
+    if (name === "bossWarning") {
+      this.tone(138, 0.34, "sawtooth", 0.028, 0.13);
+      this.tone(69, 0.48, "square", 0.022, 0.28);
+    }
+
+    if (name === "bossDown") {
+      this.tone(110, 0.32, "square", 0.032, 0.08);
+      this.tone(440, 0.42, "triangle", 0.028, 0.22);
     }
   }
 }

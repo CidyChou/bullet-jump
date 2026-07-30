@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#05070a">
-  <link rel="icon" href="./favicon.svg?v=3.7.6" type="image/svg+xml">
-  <title>Bullet Jump v3.7.6 · Copy Update</title>
-  <link rel="stylesheet" href="./style.css?v=3.7.6">
+  <link rel="icon" href="./favicon.svg?v=3.8.0" type="image/svg+xml">
+  <title>Bullet Jump v3.8 · Enemy & Boss</title>
+  <link rel="stylesheet" href="./style.css?v=3.8.0">
 </head>
 <body>
 <main id="app">
@@ -34,6 +34,12 @@
     </div>
     <div id="upgradeList" class="upgrade-list"></div>
   </header>
+
+
+  <section id="bossHud" class="boss-hud" aria-hidden="true">
+    <div class="boss-head"><span id="bossName">时间守门者</span><strong id="bossHpText">0 / 0</strong></div>
+    <div class="boss-health-track"><i id="bossHealthFill"></i></div>
+  </section>
 
   <section class="controls">
     <button id="bulletTimeButton" class="skill-button time ready" type="button">
@@ -96,6 +102,6 @@
 
   <div id="toast" class="toast"></div>
 </main>
-<script type="module" src="./src/main.js?v=3.7.6"></script>
+<script type="module" src="./src/main.js?v=3.8.0"></script>
 </body>
 </html>
