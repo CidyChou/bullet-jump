@@ -1,0 +1,1 @@
+export class Camera{constructor(h){this.y=0;this.resize(h)}resize(h){this.viewHeight=h;this.followTop=h*.56;this.followBottom=h*.80}update(p){const sy=p.y-this.y;if(sy<this.followTop)this.y=p.y-this.followTop;else if(sy>this.followBottom)this.y=p.y-this.followBottom;this.y=Math.min(this.y,0)}worldToScreenY(y){return y-this.y}apply(c){c.translate(0,-this.y)}}

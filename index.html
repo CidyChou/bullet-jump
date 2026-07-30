@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#05070a">
+  <link rel="icon" href="./favicon.svg?v=3.7.6" type="image/svg+xml">
+  <title>Bullet Jump v3.7.6 · Copy Update</title>
+  <link rel="stylesheet" href="./style.css?v=3.7.6">
+</head>
+<body>
+<main id="app">
+  <canvas id="gameCanvas" aria-label="Bullet Jump 游戏画面"></canvas>
+
+  <header class="game-hud">
+    <div class="hud-shell">
+      <section class="altitude-block"><span>ALTITUDE</span><strong id="heightValue">0m</strong></section>
+      <section class="vital-block">
+        <div class="vital-head"><span class="heart">♥</span><span>生命</span><strong id="hpValue">4 / 4</strong></div>
+        <div class="health-track"><i id="healthFill"></i></div>
+      </section>
+      <section class="hud-counters">
+        <div><small>击破</small><strong id="killValue">0</strong></div>
+        <div><small>护盾</small><strong id="shieldValue">未解锁</strong><em id="shieldRechargeText">SKILL</em></div>
+      </section>
+    </div>
+    <div class="run-progress">
+      <div class="run-meta">
+        <span>BUILD <strong id="buildLevelText">LV 0 / 10</strong></span>
+        <span>NEXT <strong id="nextUpgradeText">250m</strong></span>
+        <span>GOAL <strong id="stageGoalText">0 / 10000m</strong></span>
+      </div>
+      <div class="progress-track"><i id="rogueProgress"></i></div>
+    </div>
+    <div id="upgradeList" class="upgrade-list"></div>
+  </header>
+
+  <section class="controls">
+    <button id="bulletTimeButton" class="skill-button time ready" type="button">
+      <span class="skill-symbol">◷</span><span><small>SPACE</small><b>子弹时间</b><em id="bulletTimeText">READY</em></span>
+    </button>
+    <button id="timeJumpButton" class="skill-button jump ready" type="button">
+      <span class="skill-symbol">↑</span><span><small>↑ / W</small><b>时间跳跃</b><em id="timeJumpText">READY</em></span>
+    </button>
+  </section>
+
+  <div id="joystick" class="joystick horizontal" aria-hidden="true">
+    <span class="joy-arrow left">◀</span><span class="joy-arrow right">▶</span>
+    <span class="joy-arrow up">▲</span><span class="joy-arrow down">▼</span>
+    <span class="joy-track"></span><i id="joystickKnob"></i>
+  </div>
+
+  <section id="startOverlay" class="overlay">
+    <div class="start-card">
+      <small>AUTO FIRE · ROGUE CLIMB</small>
+      <h1>是男人就上10000层</h1>
+      <p>英雄自动射击。电脑支持完整键盘操作，手机按住画面呼出控制器。</p>
+      <div class="guide-grid">
+        <div><kbd>←</kbd><kbd>→</kbd><b>移动</b></div>
+        <div><kbd>空格</kbd><b>子弹时间</b></div>
+        <div><kbd>↑</kbd><b>时间跳跃</b></div>
+        <div><kbd>←</kbd><kbd>→</kbd><b>卡牌选择</b></div>
+      </div>
+      <button id="startButton" type="button">开始试玩</button>
+      <span class="keyboard-tip">按 Enter 或空格开始</span>
+    </div>
+  </section>
+
+  <section id="rogueOverlay" class="rogue-overlay" aria-hidden="true">
+    <div class="rogue-backdrop"></div>
+    <div id="cardSelectionFlash" class="card-selection-flash"></div>
+    <div class="rogue-panel">
+      <div class="rogue-title">
+        <small id="rogueLevelText">BUILD 1 / 10</small>
+        <h2>选择一项强化</h2>
+        <p>左右键切换，空格或回车确认。</p>
+      </div>
+      <div id="cardContainer" class="card-container"></div>
+      <div class="pick-hint"><span></span> ← / → 选择　空格 / Enter 确认 <span></span></div>
+    </div>
+  </section>
+
+  <section id="resultOverlay" class="result-overlay" aria-hidden="true">
+    <div class="result-panel">
+      <small id="resultEyebrow">STAGE CLEAR</small><h2 id="resultTitle">抵达终点</h2>
+      <p id="resultSubtitle">你完成了这一局的十次构筑。</p>
+      <div class="result-grid">
+        <div><span>高度</span><strong id="resultHeight">0m</strong></div>
+        <div><span>击破</span><strong id="resultKills">0</strong></div>
+        <div><span>构筑</span><strong id="resultBuild">0/10</strong></div>
+      </div>
+      <button id="restartButton" type="button">重新挑战</button>
+      <span class="keyboard-tip">按 Enter、空格或 R 重新开始</span>
+    </div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+</main>
+<script type="module" src="./src/main.js?v=3.7.6"></script>
+</body>
+</html>
