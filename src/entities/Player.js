@@ -1,4 +1,4 @@
-import { CONFIG } from "../config.js?v=3.8.0";
+import { CONFIG } from "../config.js?v=4.0.0";
 
 export class Player {
   constructor(x, y, input, upgrades) {
@@ -19,6 +19,11 @@ export class Player {
       alive: true,
       hitReaction: 0,
       hitDirection: 1,
+      squash: 0,
+      coyoteTime: 0,
+      jumpBuffer: 0,
+      muzzleTimer: 0,
+      muzzleAngle: -Math.PI / 2,
     });
   }
 
@@ -31,6 +36,14 @@ export class Player {
   }
 
   update(dt, game) {
+    this.squash = Math.max(0, this.squash - dt * 5);
+    this.coyoteTime = Math.max(0, this.coyoteTime - dt);
+    this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    this.muzzleTimer = Math.max(0, this.muzzleTimer - dt);
+    if (this.coyoteTime > 0 && this.jumpBuffer > 0) {
+      this.bounce(); game.audio.play('jump');
+      game.effects.burst(this.x, this.y + this.radius, 8, '#75e8bc');
+    }
     this.hitReaction = Math.max(0, this.hitReaction - dt);
     this.invulnerable = Math.max(0, this.invulnerable - dt);
     this.prevY = this.y;
@@ -54,8 +67,11 @@ export class Player {
       ? CONFIG.bulletTimeMoveScale
       : 1;
 
-    this.vx += axis * 1450 * dt;
-    this.vx *= Math.pow(0.018, dt);
+    // Immediate direction changes with a short acceleration ramp; strong braking
+    // on release keeps a thumb drag from sliding past a small landing.
+    const targetSpeed = axis * CONFIG.baseMoveSpeed * this.upgrades.stats.move * movementScale;
+    const response = axis ? 13 : 18;
+    this.vx += (targetSpeed - this.vx) * (1 - Math.exp(-response * dt));
 
     const maxSpeed =
       CONFIG.baseMoveSpeed * this.upgrades.stats.move * movementScale;
@@ -78,8 +94,15 @@ export class Player {
     if (this.x > CONFIG.worldWidth + this.radius) this.x = -this.radius;
   }
 
+  bufferJump() { this.jumpBuffer = 0.11; }
+
+  offerCoyote() { this.coyoteTime = 0.1; }
+
   bounce() {
     this.vy = this.jumpVelocity;
+    this.squash = 1;
+    this.jumpBuffer = 0;
+    this.coyoteTime = 0;
   }
 
   damage(game, source = null) {
@@ -95,6 +118,7 @@ export class Player {
     this.hitReaction = 0.28;
 
     if (this.shield > 0) {
+      this.invulnerable = 0.6;
       this.shield -= 1;
       this.shieldTimer = this.upgrades.stats.shieldCooldown;
       game.audio.play("shield");
@@ -122,6 +146,14 @@ export class Player {
   draw(ctx, game) {
     ctx.save();
     ctx.translate(this.x, this.y);
+    const stretch = Math.max(0, Math.min(1, -this.vy / 1000)) * 0.09;
+    ctx.scale(1 + this.squash * 0.18 - stretch, 1 - this.squash * 0.16 + stretch);
+    if (this.invulnerable > 0 && this.hitReaction <= 0) ctx.globalAlpha = 0.55 + Math.sin(game.elapsed * 35) * 0.2;
+    if (this.muzzleTimer > 0) {
+      ctx.save(); ctx.rotate(this.muzzleAngle);
+      ctx.fillStyle = '#fff5c9'; ctx.beginPath();
+      ctx.moveTo(24, -6); ctx.lineTo(52, 0); ctx.lineTo(24, 6); ctx.fill(); ctx.restore();
+    }
 
     if (this.hitReaction > 0) {
       const hit = this.hitReaction / 0.28;

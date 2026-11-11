@@ -1,1 +1,51 @@
-export class Input{constructor(canvas,joy,knob,modeProvider){this.canvas=canvas;this.root=canvas.parentElement;this.joystick=joy;this.knob=knob;this.modeProvider=modeProvider;this.left=this.right=this.up=this.down=false;this.mode='horizontal';this.joystickActive=false;this.pointerId=null;this.joyX=this.joyY=0;this.bindKeyboard();this.bindPointer();this.setMode('horizontal')}get horizontalAxis(){return this.joystickActive?this.joyX:(this.right?1:0)-(this.left?1:0)}get verticalAxis(){return this.joystickActive&&this.mode==='radial'?this.joyY:(this.down?1:0)-(this.up?1:0)}setMode(m){this.mode=m==='radial'?'radial':'horizontal';this.joystick.classList.remove('horizontal','radial');this.joystick.classList.add(this.mode);if(this.mode==='horizontal')this.joyY=0}syncMode(){this.setMode(this.modeProvider?.()==='radial'?'radial':'horizontal')}bindKeyboard(){addEventListener('keydown',e=>{if(['ArrowLeft','a','A'].includes(e.key))this.left=true;if(['ArrowRight','d','D'].includes(e.key))this.right=true;if(['ArrowUp','w','W'].includes(e.key))this.up=true;if(['ArrowDown','s','S'].includes(e.key))this.down=true});addEventListener('keyup',e=>{if(['ArrowLeft','a','A'].includes(e.key))this.left=false;if(['ArrowRight','d','D'].includes(e.key))this.right=false;if(['ArrowUp','w','W'].includes(e.key))this.up=false;if(['ArrowDown','s','S'].includes(e.key))this.down=false})}bindPointer(){this.canvas.addEventListener('pointerdown',e=>{e.preventDefault();this.syncMode();this.pointerId=e.pointerId;this.joystickActive=true;this.centerX=e.clientX;this.centerY=e.clientY;this.position(e.clientX,e.clientY);this.joystick.classList.add('show');this.canvas.setPointerCapture?.(e.pointerId)});this.canvas.addEventListener('pointermove',e=>{if(e.pointerId!==this.pointerId)return;this.update(e.clientX,e.clientY)});const stop=e=>{if(e.pointerId!==this.pointerId)return;this.pointerId=null;this.joystickActive=false;this.joyX=this.joyY=0;this.knob.style.transform='translate(-50%,-50%)';this.joystick.classList.remove('show')};this.canvas.addEventListener('pointerup',stop);this.canvas.addEventListener('pointercancel',stop)}position(x,y){const r=this.root.getBoundingClientRect(),w=this.joystick.offsetWidth||160,h=this.joystick.offsetHeight||50;this.joystick.style.left=`${Math.max(8,Math.min(r.width-w-8,x-r.left-w/2))}px`;this.joystick.style.top=`${Math.max(8,Math.min(r.height-h-8,y-r.top-h/2))}px`}update(x,y){const dx=x-this.centerX,dy=y-this.centerY;if(this.mode==='horizontal'){const max=(this.joystick.offsetWidth||160)*.27,px=Math.max(-max,Math.min(max,dx));this.joyX=Math.max(-1,Math.min(1,dx/45));this.joyY=0;this.knob.style.transform=`translate(calc(-50% + ${px}px),-50%)`}else{const max=(this.joystick.offsetWidth||140)*.25,l=Math.hypot(dx,dy)||1,r=Math.min(max,l),px=dx/l*r,py=dy/l*r;this.joyX=Math.max(-1,Math.min(1,dx/48));this.joyY=Math.max(-1,Math.min(1,dy/48));this.knob.style.transform=`translate(calc(-50% + ${px}px),calc(-50% + ${py}px))`}}}
+export class Input {
+  constructor(canvas, joystick, knob, modeProvider, enabled = () => true) {
+    Object.assign(this, { canvas, root: canvas.parentElement, joystick, knob, modeProvider, enabled, mode: 'horizontal' });
+    this.clear();
+    const direction = (event, down) => {
+      const keys = { ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right', ArrowUp: 'up', w: 'up', ArrowDown: 'down', s: 'down' };
+      const key = keys[event.key] || keys[event.key.toLowerCase()];
+      if (key && (!down || this.enabled())) { this[key] = down; if (this.enabled()) event.preventDefault(); }
+    };
+    addEventListener('keydown', event => direction(event, true));
+    addEventListener('keyup', event => direction(event, false));
+    addEventListener('blur', () => this.clear());
+    canvas.addEventListener('contextmenu', event => event.preventDefault());
+    canvas.addEventListener('pointerdown', event => {
+      if (!this.enabled() || this.pointerId !== null) return;
+      event.preventDefault(); this.syncMode(); this.pointerId = event.pointerId;
+      this.joystickActive = true; this.centerX = event.clientX; this.centerY = event.clientY;
+      this.joystick.classList.add('show'); this.position(event.clientX, event.clientY);
+      canvas.setPointerCapture?.(event.pointerId);
+    });
+    canvas.addEventListener('pointermove', event => { if (event.pointerId === this.pointerId) this.update(event.clientX, event.clientY); });
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) canvas.addEventListener(type, event => { if (event.pointerId === this.pointerId) this.clear(); });
+  }
+  clear() {
+    if (this.pointerId !== null && this.canvas.hasPointerCapture?.(this.pointerId)) this.canvas.releasePointerCapture(this.pointerId);
+    this.left = this.right = this.up = this.down = this.joystickActive = false;
+    this.joyX = this.joyY = 0; this.pointerId = null;
+    this.knob.style.transform = 'translate(-50%,-50%)'; this.joystick.classList.remove('show');
+  }
+  get horizontalAxis() { return this.joystickActive ? this.joyX : Number(this.right) - Number(this.left); }
+  get verticalAxis() { return this.joystickActive && this.mode === 'radial' ? this.joyY : Number(this.down) - Number(this.up); }
+  setMode(mode) {
+    if (this.mode === mode) return;
+    this.mode = mode === 'radial' ? 'radial' : 'horizontal';
+    this.joystick.classList.toggle('radial', this.mode === 'radial'); this.joystick.classList.toggle('horizontal', this.mode === 'horizontal');
+    if (this.mode === 'horizontal') this.joyY = 0;
+  }
+  syncMode() { this.setMode(this.modeProvider()); }
+  position(x, y) {
+    const rect = this.root.getBoundingClientRect(), w = this.joystick.offsetWidth || 160, h = this.joystick.offsetHeight || 50;
+    this.joystick.style.left = `${Math.max(8, Math.min(rect.width - w - 8, x - rect.left - w / 2))}px`;
+    this.joystick.style.top = `${Math.max(8, Math.min(rect.height - h - 8, y - rect.top - h / 2))}px`;
+  }
+  update(x, y) {
+    const dx = x - this.centerX, dy = y - this.centerY;
+    const max = (this.joystick.offsetWidth || 160) * 0.25;
+    this.joyX = Math.abs(dx) < 4 ? 0 : Math.max(-1, Math.min(1, dx / 45));
+    this.joyY = this.mode === 'radial' ? Math.max(-1, Math.min(1, dy / 48)) : 0;
+    this.knob.style.transform = `translate(calc(-50% + ${this.joyX * max}px),calc(-50% + ${this.joyY * max}px))`;
+  }
+}

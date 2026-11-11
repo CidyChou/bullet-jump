@@ -1,1 +1,26 @@
-export class Platform{constructor(x,y,w,type='normal'){Object.assign(this,{x,y,width:w,type,height:type==='ground'?54:20,dead:false,vx:type==='moving'?(Math.random()<.5?-1:1)*(60+Math.random()*55):0,breakTimer:0,enemyUsed:false})}update(dt){if(this.type==='moving'){this.x+=this.vx*dt;if(this.x<12||this.x+this.width>743)this.vx*=-1}if(this.breakTimer>0){this.breakTimer-=dt;if(this.breakTimer<=0)this.dead=true}}triggerBreak(){if(this.type==='break'&&this.breakTimer<=0)this.breakTimer=.42}draw(c){const g=c.createLinearGradient(0,this.y,0,this.y+this.height);if(this.type==='moving'){g.addColorStop(0,'#3498db');g.addColorStop(1,'#16a085')}else if(this.type==='break'){g.addColorStop(0,'#f39c12');g.addColorStop(1,'#8b4d1e')}else{g.addColorStop(0,'#73d58d');g.addColorStop(1,'#27ae60')}c.fillStyle=g;c.beginPath();c.roundRect(this.x,this.y,this.width,this.height,this.type==='ground'?0:9);c.fill();if(this.type==='break'){c.strokeStyle='#563015';c.lineWidth=3;c.beginPath();c.moveTo(this.x+this.width*.4,this.y+2);c.lineTo(this.x+this.width*.55,this.y+18);c.moveTo(this.x+this.width*.65,this.y+2);c.lineTo(this.x+this.width*.5,this.y+18);c.stroke()}}}
+export class Platform {
+  constructor(x, y, width, type = 'normal') {
+    Object.assign(this, { x, y, width, type, originX: x, height: type === 'ground' ? 54 : 18, dead: false, vx: type === 'moving' ? (Math.random() < 0.5 ? -1 : 1) * (45 + Math.random() * 25) : 0, breakTimer: 0, enemyUsed: false });
+  }
+  update(dt) {
+    if (this.type === 'moving') {
+      const min = Math.max(12, this.originX - 42), max = Math.min(743 - this.width, this.originX + 42);
+      this.x += this.vx * dt;
+      if (this.x < min || this.x > max) { this.x = Math.max(min, Math.min(max, this.x)); this.vx *= -1; }
+    }
+    if (this.breakTimer > 0) { this.breakTimer -= dt; if (this.breakTimer <= 0) this.dead = true; }
+  }
+  triggerBreak() { if (this.type === 'break' && this.breakTimer <= 0) this.breakTimer = 0.48; }
+  draw(ctx) {
+    const color = this.type === 'moving' ? '#74bff0' : this.type === 'break' ? '#f4bc76' : '#75d5b3';
+    ctx.fillStyle = this.type === 'moving' ? '#20384d' : this.type === 'break' ? '#463422' : '#1b3c37';
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(this.x, this.y, this.width, this.height, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = color; ctx.fillRect(this.x + 7, this.y, this.width - 14, 3);
+    if (this.type === 'moving') {
+      ctx.font = 'bold 17px system-ui'; ctx.textAlign = 'center'; ctx.fillText('↔', this.x + this.width / 2, this.y + 13);
+    } else if (this.type === 'break') {
+      ctx.beginPath(); ctx.moveTo(this.x + this.width * 0.46, this.y); ctx.lineTo(this.x + this.width * 0.52, this.y + 10); ctx.lineTo(this.x + this.width * 0.47, this.y + 18); ctx.stroke();
+    }
+  }
+}

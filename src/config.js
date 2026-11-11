@@ -7,7 +7,7 @@ export const CONFIG = Object.freeze({
   baseJumpVelocity: -960,
   baseMoveSpeed: 400,
 
-  playerFireInterval: 0.72,
+  playerFireInterval: 0.46,
   playerBulletSpeed: 880,
   enemyBulletSpeed: 275,
 
@@ -21,21 +21,6 @@ export const CONFIG = Object.freeze({
   timeJumpChargeDuration: 0.24,
   timeJumpLaunchDuration: 0.24,
 
-  platformMinGap: 82,
-  platformMaxGap: 116,
-  platformNarrowStartMeters: 3000,
-  platformMinWidthBeforeNarrowing: 205,
-  platformMaxWidthBeforeNarrowing: 285,
-  platformAbsoluteMinWidth: 132,
-  platformMaxWidthAtGoal: 190,
-
+  // Meters are display units; level curves and encounter data live in data/levels.js.
   heightWorldUnitsPerMeter: 5.45,
-  stageGoalMeters: 10000,
-  midBossMeters: 5000,
-  finalBossMeters: 10000,
-
-  rogueMilestones: Object.freeze([
-    250, 650, 1200, 1900, 2800,
-    3900, 5200, 6700, 8300, 9600,
-  ]),
 });

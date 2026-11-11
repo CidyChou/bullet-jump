@@ -1,176 +1,105 @@
-import { CONFIG } from '../config.js?v=3.8.0';
+import { CONFIG } from '../config.js?v=4.0.0';
 
 export class BossEnemy {
   constructor(tier, game) {
-    this.kind = tier === 'final' ? 'finalBoss' : 'midBoss';
-    this.tier = tier;
-    this.isBoss = true;
-    this.bossName = tier === 'final' ? '终焉时间巨兽' : '时间守门者';
-    this.radius = tier === 'final' ? 82 : 62;
-    this.x = CONFIG.worldWidth * 0.5;
-    this.y = game.camera.y + (tier === 'final' ? 270 : 300);
-    this.anchorY = tier === 'final' ? 270 : 300;
-    this.phase = 0;
-    this.pattern = 0;
-    this.fireTimer = tier === 'final' ? 0.48 : 0.68;
-    this.contactCooldown = 0;
-    this.spawnTimer = 0.85;
-    this.dead = false;
-
-    const stats = game.upgrades.stats;
-    const combatPower = stats.damage * stats.projectiles / Math.max(0.38, stats.fireRate);
-    this.maxHp = Math.round(
-      tier === 'final'
-        ? 205 + combatPower * 28
-        : 82 + combatPower * 17
-    );
-    this.hp = this.maxHp;
+    const spec = tier === 'mid' ? game.level.mid : game.level.boss;
+    Object.assign(this, { spec, tier, kind: 'boss', isBoss: true, bossName: spec.name, radius: spec.radius, x: CONFIG.worldWidth / 2, y: game.camera.y + 570, anchorY: 570, phase: 0, pattern: 0, fireTimer: spec.interval, contactCooldown: 0, spawnTimer: 1.4, dead: false, hitFlash: 0, knockback: 0, warned: false, aim: Math.PI / 2 });
+    // A small, sublinear scaling keeps upgrades powerful without trivializing a boss.
+    const power = game.upgrades.stats.damage * game.upgrades.stats.projectiles / game.upgrades.stats.fireRate;
+    this.maxHp = spec.hp + Math.round((Math.sqrt(power) - 1) * 8); this.hp = this.maxHp;
   }
-
   update(dt, game) {
     if (this.dead) return;
-    const scale = game.skills.enemyTimeScale;
-    const scaledDt = dt * scale;
-    this.phase += scaledDt;
-    this.spawnTimer = Math.max(0, this.spawnTimer - dt);
-    this.contactCooldown = Math.max(0, this.contactCooldown - scaledDt);
-
-    const targetY = game.camera.y + this.anchorY;
-    const center = CONFIG.worldWidth * 0.5;
-    const range = this.tier === 'final' ? 245 : 185;
-    const targetX = center + Math.sin(this.phase * (this.tier === 'final' ? 1.05 : 0.78)) * range;
-    this.x += (targetX - this.x) * Math.min(1, scaledDt * 2.6);
-    this.y += (targetY - this.y) * Math.min(1, scaledDt * 3.4);
-
-    const distance = Math.hypot(game.player.x - this.x, game.player.y - this.y);
-    if (distance < game.player.radius + this.radius - 8 && this.contactCooldown <= 0) {
-      this.contactCooldown = 0.95;
-      game.player.damage(game, this);
+    const scaled = dt * game.skills.enemyTimeScale;
+    this.phase += scaled; this.hitFlash = Math.max(0, this.hitFlash - scaled);
+    this.spawnTimer = Math.max(0, this.spawnTimer - scaled);
+    this.contactCooldown = Math.max(0, this.contactCooldown - scaled);
+    const range = this.spec.id === 'sentinel' ? 125 : this.spec.id === 'apex' ? 245 : 195;
+    const targetX = CONFIG.worldWidth / 2 + Math.sin(this.phase * (this.spec.id === 'apex' ? 0.9 : 0.6)) * range;
+    this.x += (targetX - this.x) * Math.min(1, scaled * 2.8);
+    // Lock the boss visibly beneath the HUD, even during a time jump.
+    this.y = game.camera.y + this.anchorY + Math.sin(this.phase) * 20;
+    if (Math.hypot(game.player.x - this.x, game.player.y - this.y) < game.player.radius + this.radius - 12 && this.contactCooldown <= 0 && this.spawnTimer <= 0) {
+      this.contactCooldown = 1; game.player.damage(game, this);
     }
-
     if (this.spawnTimer > 0) return;
-    this.fireTimer -= scaledDt;
-    if (this.fireTimer <= 0) this.attack(game);
+    this.fireTimer -= scaled;
+    if (this.fireTimer <= this.spec.telegraph && !this.warned) {
+      this.warned = true;
+      this.aim = Math.atan2(game.player.y - this.y, game.player.x - this.x);
+      game.audio.play('telegraph');
+    }
+    if (this.fireTimer <= 0) { this.attack(game); this.fireTimer = this.spec.interval; this.warned = false; }
   }
-
   attack(game) {
-    this.pattern += 1;
-    if (this.tier === 'mid') {
-      if (this.pattern % 3 === 0) this.radial(game, 10, 250, '#9b59b6');
-      else this.aimedSpread(game, 5, 0.16, 310, '#f39c12');
-      this.fireTimer = 1.08;
+    this.pattern++;
+    const s = this.spec, p = this.pattern;
+    if (s.id === 'sentinel') this.fan(game, s.count, 0.3);
+    else if (s.id === 'fork') {
+      this.fan(game, s.count, 0.2, -55); this.fan(game, 3, 0.27, 55, 0.12);
+    } else if (s.id === 'spiral') {
+      if (p % 2) this.radial(game, 11, 0.75); else this.fan(game, s.count, 0.19);
+    } else if (s.id === 'pincer') {
+      this.fan(game, 5, 0.21, -100, -0.15); this.fan(game, 5, 0.21, 100, 0.15);
+      if (p % 3 === 0) this.radial(game, 10, 0.7);
     } else {
-      if (this.pattern % 3 === 0) {
-        this.radial(game, 16, 315, '#d64541');
-        this.aimedSpread(game, 5, 0.13, 355, '#f1c40f');
-      } else if (this.pattern % 2 === 0) {
-        this.radial(game, 12, 280, '#8e44ad');
-      } else {
-        this.aimedSpread(game, 7, 0.13, 370, '#d35400');
-      }
-      this.fireTimer = 0.78;
+      const enraged = this.hp / this.maxHp < 0.4;
+      if (p % 3 === 0) { this.radial(game, enraged ? 16 : 13, 0.78); this.fan(game, 3, 0.21); }
+      else if (p % 3 === 1) this.fan(game, enraged ? 11 : 9, 0.16);
+      else { this.fan(game, 5, 0.2, -100, -0.12); this.fan(game, 5, 0.2, 100, 0.12); }
     }
-    game.audio.play('bossShot');
+    game.effects.impact(s.id === 'apex' ? 0.2 : 0.09);
+    game.effects.ring(this.x, this.y, game.level.color); game.audio.play('bossShot');
   }
-
-  aimedSpread(game, count, spread, speed, color) {
-    const base = Math.atan2(game.player.y - this.y, game.player.x - this.x);
-    for (let i = 0; i < count; i += 1) {
-      const angle = base + (i - (count - 1) / 2) * spread;
-      game.enemyBullets.push({
-        x: this.x,
-        y: this.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        radius: this.tier === 'final' ? 9 : 8,
-        life: 7,
-        color,
-        boss: true,
-      });
-    }
+  bullet(game, x, angle, speed) {
+    game.enemyBullets.push({ x, y: this.y + 12, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius: this.spec.id === 'apex' ? 8 : 7, life: 5, color: game.level.color, boss: true });
   }
-
-  radial(game, count, speed, color) {
-    const offset = this.phase * 0.65;
-    for (let i = 0; i < count; i += 1) {
-      const angle = offset + (i / count) * Math.PI * 2;
-      game.enemyBullets.push({
-        x: this.x,
-        y: this.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        radius: this.tier === 'final' ? 9 : 8,
-        life: 7,
-        color,
-        boss: true,
-      });
-    }
+  fan(game, count, spread, offset = 0, bias = 0) {
+    for (let i = 0; i < count; i++) this.bullet(game, this.x + offset, this.aim + bias + (i - (count - 1) / 2) * spread, this.spec.speed);
   }
-
-  damage(amount, game) {
+  radial(game, count, speedScale = 1) {
+    for (let i = 0; i < count; i++) this.bullet(game, this.x, this.phase * 0.5 + i / count * Math.PI * 2, this.spec.speed * speedScale);
+  }
+  damage(amount, game, source) {
     if (this.dead || this.spawnTimer > 0) return;
     this.hp -= amount;
-    game.effects.burst(this.x, this.y, 5, this.tier === 'final' ? '#d64541' : '#8e44ad');
-    game.shake = Math.max(game.shake, 2.5);
-    if (this.hp > 0) return;
-    this.dead = true;
-    game.audio.play('bossDown');
-    game.effects.burst(this.x, this.y, this.tier === 'final' ? 52 : 36, '#f1c40f');
-    game.onBossDefeated(this);
+    if (this.hp <= 0) {
+      this.dead = true; game.audio.play('bossDown');
+      game.effects.burst(this.x, this.y, 55, '#fff3bc', 1.8); game.onBossDefeated(this);
+    }
+    game.onEnemyHit(this, amount, source);
   }
-
   draw(ctx, game) {
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    const pulse = 1 + Math.sin(game.elapsed * 4) * 0.035;
-    ctx.scale(pulse, pulse);
-
-    if (this.spawnTimer > 0) {
-      ctx.globalAlpha = 0.42 + Math.sin(game.elapsed * 18) * 0.18;
-      ctx.strokeStyle = this.tier === 'final' ? '#d64541' : '#8e44ad';
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.arc(0, 0, this.radius + 34 + this.spawnTimer * 45, 0, Math.PI * 2);
-      ctx.stroke();
+    ctx.save(); ctx.translate(this.x, this.y);
+    const color = game.level.color;
+    if (this.spawnTimer > 0 || this.warned) {
+      const charge = this.spawnTimer > 0 ? 1 - this.spawnTimer / 1.4 : 1 - Math.max(0, this.fireTimer) / this.spec.telegraph;
+      ctx.strokeStyle = color; ctx.lineWidth = 3 + charge * 3; ctx.globalAlpha = 0.4 + charge * 0.5;
+      ctx.beginPath(); ctx.arc(0, 0, this.radius + 22 + (1 - charge) * 25, 0, Math.PI * 2); ctx.stroke();
+      if (this.warned) {
+        ctx.setLineDash([12, 12]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(this.aim) * 1000, Math.sin(this.aim) * 1000); ctx.stroke(); ctx.setLineDash([]);
+      }
       ctx.globalAlpha = 1;
     }
-
-    const colorA = this.tier === 'final' ? '#d64541' : '#8e44ad';
-    const colorB = this.tier === 'final' ? '#5b1422' : '#35224a';
-    const body = ctx.createRadialGradient(-this.radius * 0.3, -this.radius * 0.35, 4, 0, 0, this.radius + 12);
-    body.addColorStop(0, '#ecf0f1');
-    body.addColorStop(0.14, colorA);
-    body.addColorStop(1, colorB);
-    ctx.fillStyle = body;
+    const pulse = 1 + Math.sin(this.phase * 3) * 0.025; ctx.scale(pulse, pulse);
+    ctx.save(); ctx.rotate(this.phase * 0.3);
+    ctx.strokeStyle = color; ctx.lineWidth = 5;
+    const sides = { sentinel: 4, fork: 6, spiral: 8, pincer: 4, apex: 10 }[this.spec.id];
     ctx.beginPath();
-    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = 'rgba(236,240,241,.28)';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(0, 0, this.radius - 13, 0, Math.PI * 2);
-    ctx.stroke();
-
-    const eyeCount = this.tier === 'final' ? 3 : 2;
-    for (let i = 0; i < eyeCount; i += 1) {
-      const x = (i - (eyeCount - 1) / 2) * 26;
-      ctx.fillStyle = '#ecf0f1';
-      ctx.beginPath();
-      ctx.arc(x, -8, 9, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#111820';
-      ctx.beginPath();
-      ctx.arc(x + Math.sin(game.elapsed * 2) * 2, -7, 4, 0, Math.PI * 2);
-      ctx.fill();
+    for (let i = 0; i < sides; i++) {
+      const a = i / sides * Math.PI * 2, r = this.radius + 12;
+      if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
     }
-
-    ctx.strokeStyle = '#111820';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(0, 18, this.radius * 0.38, 0.05 * Math.PI, 0.95 * Math.PI);
-    ctx.stroke();
-
+    ctx.closePath(); ctx.stroke(); ctx.restore();
+    const body = ctx.createRadialGradient(-20, -25, 4, 0, 0, this.radius);
+    body.addColorStop(0, color); body.addColorStop(1, '#192331');
+    ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : body;
+    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#07121b'; ctx.beginPath(); ctx.roundRect(-this.radius * 0.7, -20, this.radius * 1.4, 31, 10); ctx.fill();
+    const eyes = this.spec.id === 'apex' ? 3 : 2;
+    for (let i = 0; i < eyes; i++) { ctx.fillStyle = this.warned ? '#ffffff' : color; ctx.fillRect((i - (eyes - 1) / 2) * 25 - 6, -11, 12, 12); }
+    if (this.spec.id === 'apex' && this.hp / this.maxHp < 0.4) { ctx.strokeStyle = '#ffead4'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-25, 30); ctx.lineTo(0, 40); ctx.lineTo(25, 30); ctx.stroke(); }
     ctx.restore();
   }
 }

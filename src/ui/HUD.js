@@ -1,5 +1,4 @@
-import { CONFIG } from "../config.js?v=3.8.0";
-import { CARDS_BY_ID } from "../data/cards.js?v=3.8.0";
+import { CARDS_BY_ID } from "../data/cards.js?v=4.0.0";
 
 function element(id) {
   return document.getElementById(id);
@@ -49,7 +48,7 @@ export class HUD {
   update() {
     const game = this.game;
     const hpRatio = Math.max(0, Math.min(1, game.player.hp / Math.max(1, game.player.maxHp)));
-    const stageRatio = Math.max(0, Math.min(1, game.heightMeters / CONFIG.stageGoalMeters));
+    const stageRatio = Math.max(0, Math.min(1, game.heightMeters / game.level.goal));
 
     setText(this.heightValue, `${game.heightMeters}m`);
     setText(this.hpValue, `${game.player.hp} / ${game.player.maxHp}`);
@@ -72,7 +71,7 @@ export class HUD {
         ? "MAX"
         : `${Math.max(0, game.rogue.nextHeight - game.heightMeters)}m`,
     );
-    setText(this.stageGoalText, `${game.heightMeters} / ${CONFIG.stageGoalMeters}m`);
+    setText(this.stageGoalText, `${game.heightMeters} / ${game.level.goal}m`);
     setWidth(this.rogueProgress, `${stageRatio * 100}%`);
 
     setText(
@@ -103,6 +102,7 @@ export class HUD {
     toggle(this.bulletTimeButton, "active", game.skills.isBulletTimeActive);
     const boss = game.activeBoss && !game.activeBoss.dead ? game.activeBoss : null;
     toggle(this.bossHud, "show", Boolean(boss));
+    this.bossHud?.setAttribute("aria-hidden", String(!boss));
     if (boss) {
       setText(this.bossName, boss.bossName);
       setText(this.bossHpText, `${Math.max(0, Math.ceil(boss.hp))} / ${boss.maxHp}`);

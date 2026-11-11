@@ -1,101 +1,57 @@
-import { CONFIG } from '../config.js?v=3.8.0';
+import { CONFIG } from '../config.js?v=4.0.0';
 
 export class Enemy {
-  constructor(x, y, progress = 0, platform = null) {
-    this.kind = 'ranged';
-    this.isBoss = false;
-    this.x = x;
-    this.y = y;
-    this.progress = progress;
-    this.platform = platform;
-    this.platformOffset = platform ? x - platform.x : 0;
-    this.radius = 23;
-    this.maxHp = 2 + Math.floor(progress * 7);
-    this.hp = this.maxHp;
-    this.fireTimer = 0.07 + Math.random() * 0.14;
-    this.dead = false;
-    this.phase = Math.random() * Math.PI * 2;
+  constructor(x, y, progress = 0, platform = null, kind = 'ranged') {
+    Object.assign(this, { kind, isBoss: false, x, y, progress, platform, platformOffset: platform ? x - platform.x : 0, radius: kind === 'sniper' ? 26 : 23, fireTimer: 1.4, dead: false, hitFlash: 0, knockback: 0, phase: Math.random() * Math.PI * 2, warned: false });
+    this.maxHp = 2 + Math.floor(progress * 6) + Number(kind === 'sniper'); this.hp = this.maxHp;
   }
-
   update(dt, game) {
     if (this.dead) return;
+    const scaled = dt * game.skills.enemyTimeScale;
+    this.hitFlash = Math.max(0, this.hitFlash - scaled);
     if (this.platform) {
-      if (this.platform.dead) {
-        this.dead = true;
-        return;
-      }
-      this.x = this.platform.x + this.platformOffset;
-      this.y = this.platform.y - 35;
+      if (this.platform.dead) { this.dead = true; return; }
+      this.platformOffset = Math.max(this.radius, Math.min(this.platform.width - this.radius, this.platformOffset + this.knockback * scaled));
+      this.x = this.platform.x + this.platformOffset; this.y = this.platform.y - 35;
     }
-
-    const scale = game.skills.enemyTimeScale;
-    this.fireTimer -= dt * scale;
+    this.knockback *= Math.exp(-scaled * 13);
+    // Off-screen enemies never launch surprise bullets into the play area.
+    if (this.y < game.camera.y + 320 || this.y > game.camera.y + game.height - 90) return;
+    this.fireTimer -= scaled;
+    if (this.fireTimer < 0.45 && !this.warned) { this.warned = true; this.aim = Math.atan2(game.player.y - this.y, game.player.x - this.x); }
     if (this.fireTimer > 0) return;
-
-    this.fireTimer = Math.max(0.62, 2.55 - this.progress * 1.45) + Math.random() * 0.6;
-    const baseAngle = Math.atan2(game.player.y - this.y, game.player.x - this.x);
-    const count = 1 + Number(this.progress > 0.3) + Number(this.progress > 0.65);
-    const speed = CONFIG.enemyBulletSpeed + this.progress * 155;
-
-    for (let i = 0; i < count; i += 1) {
-      const angle = baseAngle + (i - (count - 1) / 2) * 0.15;
-      game.enemyBullets.push({
-        x: this.x,
-        y: this.y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        radius: 7,
-        life: 6,
-        color: '#f39c12',
-      });
+    this.warned = false;
+    this.fireTimer = (this.kind === 'sniper' ? 2.9 : 3.1) - this.progress * 1.2;
+    const base = this.aim ?? Math.atan2(game.player.y - this.y, game.player.x - this.x);
+    const count = this.kind === 'sniper' ? 1 : 1 + Number(this.progress > 0.45) + Number(this.progress > 0.85);
+    const speed = (this.kind === 'sniper' ? 340 : 225) + this.progress * 95;
+    for (let i = 0; i < count; i++) {
+      const angle = base + (i - (count - 1) / 2) * 0.21;
+      game.enemyBullets.push({ x: this.x, y: this.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, radius: this.kind === 'sniper' ? 6 : 7, life: 5, color: this.kind === 'sniper' ? '#91dfff' : '#f4c575' });
     }
-    game.audio.play('enemyShot');
+    game.effects.muzzle(this.x, this.y, base, '#f4c575'); game.audio.play('enemyShot');
   }
-
-  damage(amount, game) {
+  damage(amount, game, source) {
     if (this.dead) return;
     this.hp -= amount;
-    game.effects.burst(this.x, this.y, 4, '#ecf0f1');
-    if (this.hp > 0) return;
-    this.dead = true;
-    game.kills += 1;
-    game.audio.play('enemyDown');
-    game.effects.burst(this.x, this.y, 14, '#8e44ad');
+    if (this.hp <= 0) { this.dead = true; game.kills++; game.audio.play('enemyDown'); }
+    game.onEnemyHit(this, amount, source);
   }
-
   draw(ctx, game) {
-    ctx.save();
-    ctx.translate(this.x, this.y + Math.sin(game.elapsed * 3 + this.phase) * 4);
-
-    const gradient = ctx.createRadialGradient(-7, -8, 2, 0, 0, this.radius + 4);
-    gradient.addColorStop(0, '#b76ad3');
-    gradient.addColorStop(0.48, '#8e44ad');
-    gradient.addColorStop(1, '#4a245a');
-    ctx.fillStyle = gradient;
+    ctx.save(); ctx.translate(this.x, this.y + Math.sin(game.elapsed * 3 + this.phase) * 3);
+    if (this.warned) {
+      ctx.strokeStyle = this.kind === 'sniper' ? 'rgba(145,223,255,.45)' : 'rgba(244,197,117,.3)';
+      ctx.lineWidth = 2; ctx.setLineDash([9, 10]); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(this.aim) * 850, Math.sin(this.aim) * 850); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : this.kind === 'sniper' ? '#71badc' : '#a478d8';
     ctx.beginPath();
-    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = '#ecf0f1';
-    ctx.beginPath();
-    ctx.arc(-8, -3, 4, 0, Math.PI * 2);
-    ctx.arc(8, -3, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#111';
-    ctx.beginPath();
-    ctx.arc(-7, -3, 2, 0, Math.PI * 2);
-    ctx.arc(7, -3, 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    this.drawHealth(ctx);
+    if (this.kind === 'sniper') { ctx.moveTo(0, -29); ctx.lineTo(27, 0); ctx.lineTo(0, 29); ctx.lineTo(-27, 0); ctx.closePath(); }
+    else ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+    ctx.fill(); ctx.strokeStyle = '#e4dcf6'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#152332'; ctx.fillRect(-14, -7, 28, 12);
+    ctx.fillStyle = '#fff3bc'; ctx.fillRect(-9, -3, 5, 4); ctx.fillRect(4, -3, 5, 4);
+    ctx.fillStyle = '#14202d'; ctx.fillRect(-23, 35, 46, 5);
+    ctx.fillStyle = '#c1a1ff'; ctx.fillRect(-23, 35, 46 * Math.max(0, this.hp / this.maxHp), 5);
     ctx.restore();
-  }
-
-  drawHealth(ctx) {
-    const ratio = Math.max(0, this.hp / this.maxHp);
-    ctx.fillStyle = 'rgba(0,0,0,.58)';
-    ctx.fillRect(-23, 31, 46, 6);
-    ctx.fillStyle = ratio > 0.45 ? '#2ecc71' : ratio > 0.2 ? '#f1c40f' : '#d35400';
-    ctx.fillRect(-22, 32, 44 * ratio, 4);
   }
 }

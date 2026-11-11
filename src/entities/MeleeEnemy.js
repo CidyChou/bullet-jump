@@ -7,8 +7,11 @@ export class MeleeEnemy {
     this.progress = progress;
     this.platform = platform;
     this.radius = 31;
-    this.maxHp = 10 + Math.floor(progress * 18);
+    this.maxHp = 4 + Math.floor(progress * 10);
     this.hp = this.maxHp;
+    this.hitFlash = 0;
+    this.knockback = 0;
+    this.telegraph = 0;
     this.dead = false;
     this.contactCooldown = 0;
     this.chargeTimer = 0;
@@ -26,6 +29,8 @@ export class MeleeEnemy {
 
     const scale = game.skills.enemyTimeScale;
     const scaledDt = dt * scale;
+    this.hitFlash = Math.max(0, this.hitFlash - scaledDt);
+    this.knockback *= Math.exp(-scaledDt * 12);
     this.contactCooldown = Math.max(0, this.contactCooldown - scaledDt);
     this.chargeCooldown = Math.max(0, this.chargeCooldown - scaledDt);
     this.chargeTimer = Math.max(0, this.chargeTimer - scaledDt);
@@ -42,14 +47,18 @@ export class MeleeEnemy {
     if (seesPlayer) {
       this.facing = Math.sign(dx) || this.facing;
       if (this.chargeCooldown <= 0 && Math.abs(dx) > 75) {
-        this.chargeTimer = 0.32;
+        this.telegraph = 0.35;
         this.chargeCooldown = 1.35 - this.progress * 0.35;
         game.audio.play('meleeCharge');
       }
     }
 
+    if (this.telegraph > 0) {
+      this.telegraph -= scaledDt;
+      if (this.telegraph <= 0) this.chargeTimer = 0.32;
+    }
     const speed = (72 + this.progress * 70) * (this.chargeTimer > 0 ? 2.65 : 1);
-    this.x += this.facing * speed * scaledDt;
+    this.x += (this.facing * speed * (this.telegraph > 0 ? 0.12 : 1) + this.knockback) * scaledDt;
     if (this.x <= minX || this.x >= maxX) {
       this.x = Math.max(minX, Math.min(maxX, this.x));
       this.facing *= -1;
@@ -63,21 +72,22 @@ export class MeleeEnemy {
     }
   }
 
-  damage(amount, game) {
+  damage(amount, game, source) {
     if (this.dead) return;
     this.hp -= amount;
-    game.effects.burst(this.x, this.y, 5, '#f39c12');
-    if (this.hp > 0) return;
-    this.dead = true;
-    game.kills += 1;
-    game.audio.play('enemyDown');
-    game.effects.burst(this.x, this.y, 20, '#d35400');
+    if (this.hp <= 0) { this.dead = true; game.kills++; game.audio.play('enemyDown'); }
+    game.onEnemyHit(this, amount, source);
   }
 
   draw(ctx, game) {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(this.facing, 1);
+    if (this.telegraph > 0) {
+      ctx.strokeStyle = '#fff3bc'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, this.radius + 10, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#fff3bc'; ctx.font = 'bold 25px system-ui'; ctx.fillText('!', -4, -45);
+    }
 
     if (this.chargeTimer > 0) {
       ctx.globalAlpha = 0.22;
@@ -92,7 +102,7 @@ export class MeleeEnemy {
     body.addColorStop(0, '#f4a742');
     body.addColorStop(0.42, '#d35400');
     body.addColorStop(1, '#6f2814');
-    ctx.fillStyle = body;
+    ctx.fillStyle = this.hitFlash > 0 ? '#ffffff' : body;
     ctx.beginPath();
     ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
     ctx.fill();

@@ -1,6 +1,9 @@
 {
-  "name": "bullet-jump-canvas-v3.7.2-render-loop-fix",
+  "name": "bullet-jump",
   "private": true,
   "type": "module",
-  "version": "3.7.5"
+  "version": "4.0.0",
+  "scripts": {
+    "test": "node tests/systems.test.js"
+  }
 }

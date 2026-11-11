@@ -1,4 +1,4 @@
-import { CONFIG } from '../config.js?v=3.8.0';
+import { CONFIG } from '../config.js?v=4.0.0';
 
 export class SkillSystem {
   constructor(upgrades, audio, ui) {
@@ -12,6 +12,7 @@ export class SkillSystem {
     this.jumpTimer = 0;
     this.jumpStartY = 0;
     this.jumpTargetY = 0;
+    this.jumpBuffer = 0;
   }
 
   get isBulletTimeActive() { return this.bulletTimeRemaining > 0; }
@@ -45,6 +46,10 @@ export class SkillSystem {
     }
 
     this.timeJumpCooldown = Math.max(0, this.timeJumpCooldown - dt);
+    if (this.jumpBuffer > 0) {
+      if (this.timeJumpCooldown <= 0 && !this.isTimeJumpAnimating) this.activateTimeJump(game);
+      else this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    }
 
     if (this.jumpPhase === 'charging') {
       this.jumpTimer -= dt;
@@ -72,7 +77,7 @@ export class SkillSystem {
   }
 
   activateBulletTime(game) {
-    if (game.paused || this.bulletTimeCooldown > 0 || this.isBulletTimeActive || this.isTimeJumpAnimating) return false;
+    if (game.paused || game.victoryTimer > 0 || this.bulletTimeCooldown > 0 || this.isBulletTimeActive || this.isTimeJumpAnimating) return false;
     this.bulletTimeRemaining = CONFIG.bulletTimeDuration * this.u.stats.timeDuration;
     this.bulletTimeCooldown = CONFIG.bulletTimeCooldown * this.u.stats.cooldown;
     game.input.setMode('radial');
@@ -83,7 +88,12 @@ export class SkillSystem {
   }
 
   activateTimeJump(game) {
-    if (game.paused || this.timeJumpCooldown > 0 || this.isTimeJumpAnimating) return false;
+    if (game.paused || game.victoryTimer > 0 || this.isTimeJumpAnimating) return false;
+    if (this.timeJumpCooldown > 0) {
+      if (this.timeJumpCooldown <= 0.11) this.jumpBuffer = 0.11;
+      return false;
+    }
+    this.jumpBuffer = 0;
     this.timeJumpCooldown = CONFIG.timeJumpCooldown * this.u.stats.cooldown;
     this.jumpPhase = 'charging';
     this.jumpTimer = CONFIG.timeJumpChargeDuration;

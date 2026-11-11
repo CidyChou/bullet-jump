@@ -2,11 +2,22 @@ export class AudioSystem {
   constructor() {
     this.ctx = null;
     this.unlocked = false;
+    this.enabled = true;
+    this.ducked = false;
+    this.master = null;
   }
 
   unlock() {
+    if (!this.enabled) return;
     if (!this.ctx) {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      try {
+        this.ctx = new AudioContext();
+        this.master = this.ctx.createGain();
+        this.master.gain.value = 0.65;
+        this.master.connect(this.ctx.destination);
+      } catch { return; }
     }
     this.unlocked = true;
     if (this.ctx.state === "suspended") {
@@ -14,25 +25,39 @@ export class AudioSystem {
     }
   }
 
+  setEnabled(enabled) {
+    this.enabled = enabled;
+    if (this.master) {
+      this.master.gain.cancelScheduledValues(this.ctx.currentTime);
+      this.master.gain.setValueAtTime(enabled ? 0.65 : 0, this.ctx.currentTime);
+    }
+    if (enabled) this.unlock();
+  }
+
+  setDucked(ducked) { this.ducked = ducked; }
+
   tone(frequency, duration = 0.08, type = "sine", volume = 0.025, delay = 0) {
-    if (!this.unlocked || !this.ctx) return;
+    if (!this.enabled || !this.unlocked || !this.ctx) return;
 
     const now = this.ctx.currentTime + delay;
     const oscillator = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
     oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, now);
-    gain.gain.setValueAtTime(volume, now);
+    oscillator.frequency.setValueAtTime(frequency * (this.ducked ? 0.78 : 1), now);
+    gain.gain.setValueAtTime(volume * (this.ducked ? 0.7 : 1), now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
-    oscillator.connect(gain).connect(this.ctx.destination);
+    oscillator.connect(gain).connect(this.master);
     oscillator.start(now);
     oscillator.stop(now + duration);
   }
 
   play(name) {
     const sounds = {
+      ui: [680, 0.045, "sine", 0.018],
+      land: [105, 0.08, "triangle", 0.021],
+      telegraph: [330, 0.1, "triangle", 0.014],
       shot: [610, 0.035, "square", 0.01],
       enemyShot: [150, 0.09, "sawtooth", 0.016],
       hit: [260, 0.05, "square", 0.015],
@@ -52,6 +77,11 @@ export class AudioSystem {
       bossDown: [55, 0.48, "sawtooth", 0.045],
     };
 
+    if (name === "win" || name === "lose") {
+      const notes = name === 'win' ? [523, 659, 784, 1046] : [294, 247, 196];
+      notes.forEach((note, i) => this.tone(note, 0.28, 'triangle', 0.035, i * 0.13));
+      return;
+    }
     if (name === "hurt") {
       // Layered low impact: body thump + sharp contact + short tail.
       this.tone(86, 0.18, "sawtooth", 0.042);
