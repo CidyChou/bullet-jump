@@ -400,3 +400,19 @@ to{opacity:1;transform:translateY(0) scale(1)}
 @keyframes menuBackdrop{from{opacity:0}to{opacity:1}}
 
 .run-heading{height:44px}.run-heading button{height:44px}
+
+/* Extend the first level's sky only for embedded desktop play areas. */
+@media (width > 600px) {
+  html.is-embed body { isolation: isolate; background: #040608; }
+  html.is-embed body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='720' viewBox='0 0 560 720'%3E%3Cg fill='%23ecf0f1'%3E%3Cg opacity='.18'%3E%3Ccircle cx='42' cy='64' r='1'/%3E%3Ccircle cx='318' cy='128' r='.8'/%3E%3Ccircle cx='176' cy='352' r='1.2'/%3E%3Ccircle cx='491' cy='467' r='.9'/%3E%3Ccircle cx='96' cy='632' r='1'/%3E%3Ccircle cx='372' cy='686' r='.8'/%3E%3C/g%3E%3Cg opacity='.32'%3E%3Ccircle cx='213' cy='41' r='.8'/%3E%3Ccircle cx='508' cy='204' r='1.1'/%3E%3Ccircle cx='61' cy='273' r='.7'/%3E%3Ccircle cx='349' cy='391' r='1'/%3E%3Ccircle cx='257' cy='552' r='.8'/%3E%3Ccircle cx='535' cy='653' r='1.2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat,
+      linear-gradient(180deg, #040608, #112b2b);
+  }
+  html.is-embed #app { position: relative; z-index: 1; }
+}
